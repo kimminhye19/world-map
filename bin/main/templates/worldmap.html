@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>World Map</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/src/main/resources/static/css/Worldmap.css">
+    <link rel="stylesheet" href="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.css">
+    <script src="https://www.amcharts.com/lib/4/core.js"></script>
+    <script src="https://www.amcharts.com/lib/4/maps.js"></script>
+    <script src="https://www.amcharts.com/lib/4/geodata/worldLow.js"></script>
+    <script src="https://www.amcharts.com/lib/4/themes/animated.js"></script>
+</head>
+
+<body>
+    <div id="world_map"></div>
+    <div>
+        <label for="countryDropdown">다녀온 여행지 :</label>
+        <select id="countryDropdown" onchange="highlightCountry()">
+            <option value="choice" selected disabled hidden>국가 선택</option>
+            <option value="KR">한국</option>
+            <option value="US">미국</option>
+            <option value="CN">중국</option>
+        </select>
+    </div>
+
+    <div id="selectedCountries">
+        <!-- 선택된 국가들이 여기에 표시될 것입니다. -->
+    </div>
+
+    <script>
+        var selectedCountries = [];
+        var chart; // chart 변수를 전역 범위로 이동
+
+        function highlightCountry() {
+            var countryDropdown = document.getElementById("countryDropdown");
+            var selectedCountry = countryDropdown.value;
+
+            // 빈 값이 선택되었는지 확인
+            if (selectedCountry !== "") {
+                // 이미 선택된 국가인지 확인
+                if (selectedCountries.indexOf(selectedCountry) === -1) {
+                    selectedCountries.push(selectedCountry);
+                    updateSelectedCountries();
+                }
+
+                // 콘솔에 선택된 국가 출력
+                console.log("선택된 국가들:", selectedCountries);
+            }
+
+            // 선택된 국가를 초기화하여 드롭다운을 기본 선택 값으로 되돌림
+            countryDropdown.value = "";
+        }
+
+        function updateSelectedCountries() {
+            var selectedCountriesDiv = document.getElementById("selectedCountries");
+            selectedCountriesDiv.innerHTML = "";
+
+            // 선택된 국가들을 표시하고 삭제 버튼 추가
+            selectedCountries.forEach(function (countryCode) {
+                var countryDiv = document.createElement("div");
+                var countryName = getCountryName(countryCode);
+                countryDiv.innerHTML = countryName + " <button onclick='removeCountry(\"" + countryCode + "\")'>x</button>";
+                selectedCountriesDiv.appendChild(countryDiv);
+            });
+
+            // 국가 색상 업데이트
+            updateCountryColors();
+        }
+
+        function removeCountry(countryCode) {
+            // 선택된 국가 배열에서 삭제
+            var index = selectedCountries.indexOf(countryCode);
+            if (index !== -1) {
+                selectedCountries.splice(index, 1);
+                updateSelectedCountries();
+            }
+
+            // 콘솔에 선택된 국가 출력
+            console.log("선택된 국가들:", selectedCountries);
+        }
+
+        function getCountryName(countryCode) {
+            switch (countryCode) {
+                case "KR":
+                    return "한국";
+                case "US":
+                    return "미국";
+                case "CN":
+                    return "중국";
+                // 추가 국가 정보는 필요에 따라 계속해서 추가
+                default:
+                    return "";
+            }
+        }
+
+        // amCharts 초기화
+        am4core.ready(function () {
+            // 차트 생성
+            chart = am4core.create("world_map", am4maps.MapChart);
+
+            // 지도 설정
+            chart.geodata = am4geodata_worldLow;
+
+            // 지도의 다양한 설정
+            var polygonSeries = chart.series.push(new am4maps.MapPolygonSeries());
+            polygonSeries.useGeodata = true;
+            polygonSeries.exclude = ["AQ"]; // 남극을 제외하고 표시
+
+            // 국가별 폴리곤 스타일
+            var polygonTemplate = polygonSeries.mapPolygons.template;
+            polygonTemplate.tooltipText = "{name}";
+
+            // 아래의 부분을 추가하여 초기에 한국을 노란색으로 표시
+            polygonTemplate.propertyFields.fill = function (dataItem) {
+                return selectedCountries.indexOf(dataItem.id) !== -1 ? am4core.color("#FFDF7B") : am4core.color("#A2A6A1");
+            };
+
+            // 클릭 이벤트 처리
+            polygonTemplate.events.on("hit", function (event) {
+                // 선택한 국가의 폴리곤
+                var selectedPolygon = event.target;
+                var countryCode = selectedPolygon.dataItem.dataContext.id;
+
+                // 이미 선택된 국가인지 확인
+                if (selectedCountries.indexOf(countryCode) === -1) {
+                    selectedCountries.push(countryCode);
+                    updateSelectedCountries();
+                }
+
+                // 국가 색상 업데이트
+                updateCountryColors();
+            });
+
+            // 화면 정중앙에 지도 위치
+            chart.deltaLongitude = -10;
+
+            // 화면 줌 기능 비활성화
+            chart.zoomControl = new am4maps.ZoomControl();
+        });
+
+        // 국가 색상 업데이트 함수
+        function updateCountryColors() {
+            var polygonSeries = chart.series.values[0];
+            polygonSeries.mapPolygons.each(function (polygon) {
+                var countryCode = polygon.dataItem.dataContext.id;
+                polygon.fill = selectedCountries.indexOf(countryCode) !== -1 ? am4core.color("#FFDF7B") : am4core.color("#A2A6A1");
+            });
+        }
+    </script>
+</body>
+
+</html>
